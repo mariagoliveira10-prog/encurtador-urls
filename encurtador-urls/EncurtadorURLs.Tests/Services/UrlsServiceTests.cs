@@ -37,7 +37,12 @@ public class UrlsServiceTests
         Assert.NotNull(resultado);
         Assert.Equal(urlOriginal, resultado.OriginalUrl);
         Assert.False(string.IsNullOrEmpty(resultado.ShortCode));
+        _mockContext.Verify(
+    c => c.AddAsync(It.IsAny<UrlItem>()),
+    Times.Once
+);
     }
+
 
     [Fact]
     public async Task CreateShortUrlAsync_ComUrlVazia_DeveLancarArgumentException()
@@ -55,5 +60,62 @@ public class UrlsServiceTests
         await Assert.ThrowsAsync<ArgumentException>(
             () => _service.CreateShortUrlAsync("ftp://arquivo-invalido.com")
         );
+    }
+    [Fact]
+    public async Task CreateShortUrlAsync_ComUrlNula_DeveLancarArgumentException()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => _service.CreateShortUrlAsync(null!)
+        );
+    }
+    [Fact]
+    public async Task CreateShortUrlAsync_ComUrlMuitoLonga_DeveLancarArgumentException()
+    {
+        var urlLonga = "https://exemplo.com/" + new string('a', 2100);
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => _service.CreateShortUrlAsync(urlLonga)
+        );
+    }
+    [Fact]
+    public async Task GetUrlByIdAsync_ComGuidVazio_DeveLancarArgumentException()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => _service.GetUrlByIdAsync(Guid.Empty)
+        );
+    }
+    [Fact]
+    public async Task GetUrlByIdAsync_ComIdInexistente_DeveRetornarNull()
+    {
+        var id = Guid.NewGuid();
+
+        _mockContext
+            .Setup(c => c.GetByIdAsync(id))
+            .ReturnsAsync((UrlItem?)null);
+
+        var resultado = await _service.GetUrlByIdAsync(id);
+
+        Assert.Null(resultado);
+    }
+    [Fact]
+    public async Task GetUrlByIdAsync_ComIdExistente_DeveRetornarUrlItem()
+    {
+        var id = Guid.NewGuid();
+
+        var urlEsperada = new UrlItem
+        {
+            Id = id,
+            OriginalUrl = "https://www.google.com",
+            ShortCode = "abc123"
+        };
+
+        _mockContext
+            .Setup(c => c.GetByIdAsync(id))
+            .ReturnsAsync(urlEsperada);
+
+        var resultado = await _service.GetUrlByIdAsync(id);
+
+        Assert.NotNull(resultado);
+        Assert.Equal(urlEsperada, resultado);
     }
 }
